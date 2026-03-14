@@ -81,19 +81,12 @@ def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
 
 def build_rows() -> list[list]:
     now = dt.datetime.now(CLIENT_TIMEZONE)
-    today = now.date().isoformat()
-    fixtures = api_get("/fixtures", {"date": today})
     updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
     team_cache: Dict[int, Tuple[int, int, float, float]] = {}
+    selected_date, fixtures = fetch_fixtures_for_best_date(now)
 
-    print(f"Using client timezone date: {today}")
+    print(f"Selected fixture date: {selected_date}")
     print(f"Fixtures fetched: {len(fixtures)}")
-
-    utc_today = dt.datetime.now(dt.timezone.utc).date().isoformat()
-    if not fixtures and utc_today != today:
-        print(f"No fixtures for client date. Trying UTC date fallback: {utc_today}")
-        fixtures = api_get("/fixtures", {"date": utc_today})
-        print(f"Fixtures fetched with UTC fallback: {len(fixtures)}")
 
     rows = [[
         "Date",
@@ -142,6 +135,31 @@ def build_rows() -> list[list]:
         ])
 
     return rows
+
+
+def fetch_fixtures_for_best_date(now: dt.datetime) -> tuple[str, list]:
+    utc_now = dt.datetime.now(dt.timezone.utc)
+    candidate_dates = []
+
+    for candidate in [
+        now.date(),
+        utc_now.date(),
+        now.date() - dt.timedelta(days=1),
+        utc_now.date() - dt.timedelta(days=1),
+        now.date() + dt.timedelta(days=1),
+        utc_now.date() + dt.timedelta(days=1),
+    ]:
+        candidate_str = candidate.isoformat()
+        if candidate_str not in candidate_dates:
+            candidate_dates.append(candidate_str)
+
+    for candidate_date in candidate_dates:
+        fixtures = api_get("/fixtures", {"date": candidate_date})
+        print(f"Candidate date {candidate_date}: {len(fixtures)} fixtures")
+        if fixtures:
+            return candidate_date, fixtures
+
+    return candidate_dates[0], []
 
 
 def main():
