@@ -1,6 +1,7 @@
 import datetime as dt
 import os
 from typing import Dict, Tuple
+from zoneinfo import ZoneInfo
 
 import gspread
 import requests
@@ -12,6 +13,7 @@ LAST_MATCH_LOOKBACK = 5
 REQUIRED_COMPLETED_MATCHES = 5
 COMPLETED_STATUSES = {"FT", "AET", "PEN"}
 SHEET_NAME = "Today's Matches"
+CLIENT_TIMEZONE = ZoneInfo("America/New_York")
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -73,9 +75,10 @@ def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
 
 
 def build_rows() -> list[list]:
-    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    now = dt.datetime.now(CLIENT_TIMEZONE)
+    today = now.date().isoformat()
     fixtures = api_get("/fixtures", {"date": today})
-    updated_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
     team_cache: Dict[int, Tuple[int, int, float, float]] = {}
 
     rows = [[
