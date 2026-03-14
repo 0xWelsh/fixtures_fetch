@@ -50,10 +50,8 @@ def get_worksheet():
 def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
     try:
         fixtures = api_get("/fixtures", {"team": team_id, "last": LAST_MATCH_LOOKBACK})
-    except requests.HTTPError as error:
-        if error.response is not None and error.response.status_code == 400:
-            return 0, 0, 0.0, 0.0
-        raise
+    except requests.RequestException:
+        return 0, 0, 0.0, 0.0
 
     gf_total = 0
     ga_total = 0
@@ -140,8 +138,21 @@ def build_rows() -> list[list]:
 def main():
     worksheet = get_worksheet()
     rows = build_rows()
-    worksheet.clear()
-    worksheet.update(values=rows, range_name="A1")
+    end_column = column_label(len(rows[0]))
+    worksheet.update(
+        range_name=f"A1:{end_column}{len(rows)}",
+        values=rows,
+    )
+
+
+def column_label(column_number: int) -> str:
+    label = ""
+
+    while column_number > 0:
+        column_number, remainder = divmod(column_number - 1, 26)
+        label = chr(65 + remainder) + label
+
+    return label
 
 
 if __name__ == "__main__":
