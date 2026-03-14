@@ -18,10 +18,11 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
+SESSION = requests.Session()
 
 
 def api_get(path: str, params: dict | None = None) -> list:
-    response = requests.get(
+    response = SESSION.get(
         f"{BASE_URL}{path}",
         headers={"x-apisports-key": os.environ["FOOTBALL_API_KEY"]},
         params=params,
@@ -47,7 +48,13 @@ def get_worksheet():
 
 
 def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
-    fixtures = api_get("/fixtures", {"team": team_id, "last": LAST_MATCH_LOOKBACK})
+    try:
+        fixtures = api_get("/fixtures", {"team": team_id, "last": LAST_MATCH_LOOKBACK})
+    except requests.HTTPError as error:
+        if error.response is not None and error.response.status_code == 400:
+            return 0, 0, 0.0, 0.0
+        raise
+
     gf_total = 0
     ga_total = 0
     completed_count = 0
@@ -134,7 +141,7 @@ def main():
     worksheet = get_worksheet()
     rows = build_rows()
     worksheet.clear()
-    worksheet.update("A1", rows)
+    worksheet.update(values=rows, range_name="A1")
 
 
 if __name__ == "__main__":
