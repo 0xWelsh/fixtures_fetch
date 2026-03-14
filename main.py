@@ -89,6 +89,12 @@ def build_rows() -> list[list]:
     print(f"Using client timezone date: {today}")
     print(f"Fixtures fetched: {len(fixtures)}")
 
+    utc_today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    if not fixtures and utc_today != today:
+        print(f"No fixtures for client date. Trying UTC date fallback: {utc_today}")
+        fixtures = api_get("/fixtures", {"date": utc_today})
+        print(f"Fixtures fetched with UTC fallback: {len(fixtures)}")
+
     rows = [[
         "Date",
         "Country",
@@ -145,7 +151,8 @@ def main():
     print(f"Rows prepared for write: {len(rows)}")
 
     if len(rows) == 1:
-        print("No fixture rows returned. Writing header row only.")
+        print("No fixture rows returned. Preserving existing sheet data.")
+        return
 
     end_column = column_label(len(rows[0]))
     worksheet.clear()
