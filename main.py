@@ -86,6 +86,9 @@ def build_rows() -> list[list]:
     updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
     team_cache: Dict[int, Tuple[int, int, float, float]] = {}
 
+    print(f"Using client timezone date: {today}")
+    print(f"Fixtures fetched: {len(fixtures)}")
+
     rows = [[
         "Date",
         "Country",
@@ -138,11 +141,19 @@ def build_rows() -> list[list]:
 def main():
     worksheet = get_worksheet()
     rows = build_rows()
+    print(f"Target worksheet: {worksheet.title}")
+    print(f"Rows prepared for write: {len(rows)}")
+
+    if len(rows) == 1:
+        print("No fixture rows returned. Writing header row only.")
+
     end_column = column_label(len(rows[0]))
+    worksheet.clear()
     worksheet.update(
         range_name=f"A1:{end_column}{len(rows)}",
         values=rows,
     )
+    print(f"Sheet update complete: A1:{end_column}{len(rows)}")
 
 
 def column_label(column_number: int) -> str:
