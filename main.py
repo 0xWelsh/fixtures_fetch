@@ -13,7 +13,7 @@ LAST_MATCH_LOOKBACK = 5
 REQUIRED_COMPLETED_MATCHES = 5
 COMPLETED_STATUSES = {"FT", "AET", "PEN"}
 SHEET_NAME = "Today's Matches"
-CLIENT_TIMEZONE = ZoneInfo("America/New_York")
+CLIENT_TIMEZONE = ZoneInfo("Africa/Nairobi")
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
