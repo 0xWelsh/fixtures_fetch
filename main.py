@@ -103,6 +103,8 @@ def build_rows() -> list[list]:
         "Home Team Last 5 Avg Goals Conceded",
         "Away Team Last 5 Avg Goals Scored",
         "Away Team Last 5 Avg Goals Conceded",
+        "Teams Average Scored Total",
+        "Teams Average Conceded Total",
     ]]
 
     for fixture in fixtures:
@@ -132,6 +134,8 @@ def build_rows() -> list[list]:
             home_ga_avg,
             away_gf_avg,
             away_ga_avg,
+            round(home_gf_avg + away_gf_avg, 2),
+            round(home_ga_avg + away_ga_avg, 2),
         ])
 
     return rows
