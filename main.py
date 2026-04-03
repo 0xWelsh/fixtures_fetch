@@ -105,6 +105,8 @@ def build_rows() -> list[list]:
         "Away Team Last 5 Avg Goals Conceded",
         "Teams Average Scored Total",
         "Teams Average Conceded Total",
+        "Home Expected Goals", # NEW COLUMN
+        "Away Expected Goals", # NEW COLUMN
     ]]
 
     for fixture in fixtures:
@@ -118,6 +120,10 @@ def build_rows() -> list[list]:
 
         home_gf, home_ga, home_gf_avg, home_ga_avg = team_cache[home_id]
         away_gf, away_ga, away_gf_avg, away_ga_avg = team_cache[away_id]
+
+        # NEW CALCULATIONS
+        home_expected_goals = round((home_gf_avg + away_ga_avg) / 2, 2)
+        away_expected_goals = round((home_ga_avg + away_gf_avg) / 2, 2)
 
         rows.append([
             fixture["fixture"]["date"],
@@ -136,6 +142,8 @@ def build_rows() -> list[list]:
             away_ga_avg,
             round(home_gf_avg + away_gf_avg, 2),
             round(home_ga_avg + away_ga_avg, 2),
+            home_expected_goals, # NEW DATA
+            away_expected_goals, # NEW DATA
         ])
 
     return rows
