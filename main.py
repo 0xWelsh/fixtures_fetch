@@ -1,4 +1,5 @@
 import datetime as dt
+import time
 import os
 from typing import Dict, Tuple
 from zoneinfo import ZoneInfo
@@ -22,14 +23,26 @@ SESSION = requests.Session()
 
 
 def api_get(path: str, params: dict | None = None) -> list:
+    # Add a tiny 0.2 second pause. This restricts the script to ~5 requests per second, 
+    # keeping you safely under the 300/minute limit of the Ultra plan.
+    time.sleep(0.2) 
+    
     response = SESSION.get(
         f"{BASE_URL}{path}",
         headers={"x-apisports-key": os.environ["FOOTBALL_API_KEY"]},
         params=params,
         timeout=30,
     )
+    
     response.raise_for_status()
     payload = response.json()
+    
+    # Catch API-Sports specific errors that return a 200 OK status
+    if payload.get("errors"):
+        print(f"API Error caught: {payload.get('errors')}")
+        # Raising an error forces your summarize_last_5 function to catch it properly
+        raise requests.RequestException(f"API Error: {payload.get('errors')}")
+        
     return payload.get("response", [])
 
 
