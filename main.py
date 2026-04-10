@@ -8,7 +8,6 @@ import gspread
 import requests
 from google.oauth2.service_account import Credentials
 
-
 BASE_URL = "https://v3.football.api-sports.io"
 LAST_MATCH_LOOKBACK = 5
 REQUIRED_COMPLETED_MATCHES = 5
@@ -21,12 +20,8 @@ SCOPES = [
 ]
 SESSION = requests.Session()
 
-
 def api_get(path: str, params: dict | None = None) -> list:
-    # Add a tiny 0.2 second pause. This restricts the script to ~5 requests per second, 
-    # keeping you safely under the 300/minute limit of the Ultra plan.
     time.sleep(0.2) 
-    
     response = SESSION.get(
         f"{BASE_URL}{path}",
         headers={"x-apisports-key": os.environ["FOOTBALL_API_KEY"]},
@@ -37,14 +32,11 @@ def api_get(path: str, params: dict | None = None) -> list:
     response.raise_for_status()
     payload = response.json()
     
-    # Catch API-Sports specific errors that return a 200 OK status
     if payload.get("errors"):
         print(f"API Error caught: {payload.get('errors')}")
-        # Raising an error forces your summarize_last_5 function to catch it properly
         raise requests.RequestException(f"API Error: {payload.get('errors')}")
         
     return payload.get("response", [])
-
 
 def get_worksheet():
     credentials = Credentials.from_service_account_file(
@@ -58,7 +50,6 @@ def get_worksheet():
         return spreadsheet.worksheet(SHEET_NAME)
     except gspread.WorksheetNotFound:
         return spreadsheet.add_worksheet(title=SHEET_NAME, rows=2000, cols=20)
-
 
 def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
     try:
@@ -91,15 +82,32 @@ def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
         round(ga_total / divisor, 2) if completed_count else 0.0,
     )
 
+def fetch_fixtures_for_date_range(now: dt.datetime, days_to_fetch: int = 3) -> list:
+    all_fixtures = []
+    candidate_dates = []
+
+    for i in range(days_to_fetch):
+        candidate_date = (now.date() + dt.timedelta(days=i)).isoformat()
+        if candidate_date not in candidate_dates:
+            candidate_dates.append(candidate_date)
+
+    for candidate_date in candidate_dates:
+        print(f"Fetching fixtures for {candidate_date}...")
+        fixtures = api_get("/fixtures", {"date": candidate_date})
+        print(f"Found {len(fixtures)} fixtures.")
+        if fixtures:
+            all_fixtures.extend(fixtures)
+
+    return all_fixtures
 
 def build_rows() -> list[list]:
     now = dt.datetime.now(CLIENT_TIMEZONE)
     updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
     team_cache: Dict[int, Tuple[int, int, float, float]] = {}
-    selected_date, fixtures = fetch_fixtures_for_best_date(now)
+    
+    fixtures = fetch_fixtures_for_date_range(now, days_to_fetch=3)
 
-    print(f"Selected fixture date: {selected_date}")
-    print(f"Fixtures fetched: {len(fixtures)}")
+    print(f"Total fixtures fetched across range: {len(fixtures)}")
 
     rows = [[
         "Date",
@@ -118,8 +126,9 @@ def build_rows() -> list[list]:
         "Away Team Last 5 Avg Goals Conceded",
         "Teams Average Scored Total",
         "Teams Average Conceded Total",
-        "Home Expected Goals", # NEW COLUMN
-        "Away Expected Goals", # NEW COLUMN
+        "Home Expected Goals", 
+        "Away Expected Goals",
+        "Total", # NEW HEADER
     ]]
 
     for fixture in fixtures:
@@ -134,9 +143,11 @@ def build_rows() -> list[list]:
         home_gf, home_ga, home_gf_avg, home_ga_avg = team_cache[home_id]
         away_gf, away_ga, away_gf_avg, away_ga_avg = team_cache[away_id]
 
-        # NEW CALCULATIONS
         home_expected_goals = round((home_gf_avg + away_ga_avg) / 2, 2)
         away_expected_goals = round((home_ga_avg + away_gf_avg) / 2, 2)
+        
+        # NEW CALCULATION
+        total_expected_goals = round(home_expected_goals + away_expected_goals, 2)
 
         rows.append([
             fixture["fixture"]["date"],
@@ -155,37 +166,12 @@ def build_rows() -> list[list]:
             away_ga_avg,
             round(home_gf_avg + away_gf_avg, 2),
             round(home_ga_avg + away_ga_avg, 2),
-            home_expected_goals, # NEW DATA
-            away_expected_goals, # NEW DATA
+            home_expected_goals, 
+            away_expected_goals, 
+            total_expected_goals, # NEW DATA
         ])
 
     return rows
-
-
-def fetch_fixtures_for_best_date(now: dt.datetime) -> tuple[str, list]:
-    utc_now = dt.datetime.now(dt.timezone.utc)
-    candidate_dates = []
-
-    for candidate in [
-        now.date(),
-        utc_now.date(),
-        now.date() - dt.timedelta(days=1),
-        utc_now.date() - dt.timedelta(days=1),
-        now.date() + dt.timedelta(days=1),
-        utc_now.date() + dt.timedelta(days=1),
-    ]:
-        candidate_str = candidate.isoformat()
-        if candidate_str not in candidate_dates:
-            candidate_dates.append(candidate_str)
-
-    for candidate_date in candidate_dates:
-        fixtures = api_get("/fixtures", {"date": candidate_date})
-        print(f"Candidate date {candidate_date}: {len(fixtures)} fixtures")
-        if fixtures:
-            return candidate_date, fixtures
-
-    return candidate_dates[0], []
-
 
 def main():
     worksheet = get_worksheet()
@@ -205,16 +191,12 @@ def main():
     )
     print(f"Sheet update complete: A1:{end_column}{len(rows)}")
 
-
 def column_label(column_number: int) -> str:
     label = ""
-
     while column_number > 0:
         column_number, remainder = divmod(column_number - 1, 26)
         label = chr(65 + remainder) + label
-
     return label
-
 
 if __name__ == "__main__":
     main()
