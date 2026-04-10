@@ -82,32 +82,39 @@ def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
         round(ga_total / divisor, 2) if completed_count else 0.0,
     )
 
-def fetch_fixtures_for_date_range(now: dt.datetime, days_to_fetch: int = 3) -> list:
-    all_fixtures = []
+def fetch_fixtures_for_best_date(now: dt.datetime) -> tuple[str, list]:
+    utc_now = dt.datetime.now(dt.timezone.utc)
     candidate_dates = []
 
-    for i in range(days_to_fetch):
-        candidate_date = (now.date() + dt.timedelta(days=i)).isoformat()
-        if candidate_date not in candidate_dates:
-            candidate_dates.append(candidate_date)
+    for candidate in [
+        now.date(),
+        utc_now.date(),
+        now.date() - dt.timedelta(days=1),
+        utc_now.date() - dt.timedelta(days=1),
+        now.date() + dt.timedelta(days=1),
+        utc_now.date() + dt.timedelta(days=1),
+    ]:
+        candidate_str = candidate.isoformat()
+        if candidate_str not in candidate_dates:
+            candidate_dates.append(candidate_str)
 
     for candidate_date in candidate_dates:
-        print(f"Fetching fixtures for {candidate_date}...")
         fixtures = api_get("/fixtures", {"date": candidate_date})
-        print(f"Found {len(fixtures)} fixtures.")
+        print(f"Candidate date {candidate_date}: {len(fixtures)} fixtures")
         if fixtures:
-            all_fixtures.extend(fixtures)
+            return candidate_date, fixtures
 
-    return all_fixtures
+    return candidate_dates[0], []
 
 def build_rows() -> list[list]:
     now = dt.datetime.now(CLIENT_TIMEZONE)
     updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
     team_cache: Dict[int, Tuple[int, int, float, float]] = {}
     
-    fixtures = fetch_fixtures_for_date_range(now, days_to_fetch=3)
+    selected_date, fixtures = fetch_fixtures_for_best_date(now)
 
-    print(f"Total fixtures fetched across range: {len(fixtures)}")
+    print(f"Selected fixture date: {selected_date}")
+    print(f"Fixtures fetched: {len(fixtures)}")
 
     rows = [[
         "Date",
@@ -128,7 +135,7 @@ def build_rows() -> list[list]:
         "Teams Average Conceded Total",
         "Home Expected Goals", 
         "Away Expected Goals",
-        "Total", # NEW HEADER
+        "Total", 
     ]]
 
     for fixture in fixtures:
@@ -146,7 +153,6 @@ def build_rows() -> list[list]:
         home_expected_goals = round((home_gf_avg + away_ga_avg) / 2, 2)
         away_expected_goals = round((home_ga_avg + away_gf_avg) / 2, 2)
         
-        # NEW CALCULATION
         total_expected_goals = round(home_expected_goals + away_expected_goals, 2)
 
         rows.append([
@@ -168,7 +174,7 @@ def build_rows() -> list[list]:
             round(home_ga_avg + away_ga_avg, 2),
             home_expected_goals, 
             away_expected_goals, 
-            total_expected_goals, # NEW DATA
+            total_expected_goals, 
         ])
 
     return rows
