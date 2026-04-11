@@ -3,7 +3,7 @@ name: Daily Football Sheet Update
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 19 * * *"
 
 jobs:
   update-sheet:
