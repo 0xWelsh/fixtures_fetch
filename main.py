@@ -9,8 +9,8 @@ import requests
 from google.oauth2.service_account import Credentials
 
 BASE_URL = "https://v3.football.api-sports.io"
-LAST_MATCH_LOOKBACK = 5
-REQUIRED_COMPLETED_MATCHES = 5
+LAST_MATCH_LOOKBACK = 3
+REQUIRED_COMPLETED_MATCHES = 3
 COMPLETED_STATUSES = {"FT", "AET", "PEN"}
 SHEET_NAME = "Today's Matches"
 CLIENT_TIMEZONE = ZoneInfo("Africa/Nairobi")
@@ -51,7 +51,7 @@ def get_worksheet():
     except gspread.WorksheetNotFound:
         return spreadsheet.add_worksheet(title=SHEET_NAME, rows=2000, cols=20)
 
-def summarize_last_5(team_id: int) -> Tuple[int, int, float, float]:
+def summarize_last_3(team_id: int) -> Tuple[int, int, float, float]:
     try:
         fixtures = api_get("/fixtures", {"team": team_id, "last": LAST_MATCH_LOOKBACK})
     except requests.RequestException:
@@ -122,15 +122,15 @@ def build_rows() -> list[list]:
         "League",
         "Home Team",
         "Away Team",
-        "Home Team Last 5 Goals Scored",
-        "Home Team Last 5 Goals Conceded",
-        "Away Team Last 5 Goals Scored",
-        "Away Team Last 5 Goals Conceded",
+        "Home Team Last 3 Goals Scored",
+        "Home Team Last 3 Goals Conceded",
+        "Away Team Last 3 Goals Scored",
+        "Away Team Last 3 Goals Conceded",
         "Updated",
-        "Home Team Last 5 Avg Goals Scored",
-        "Home Team Last 5 Avg Goals Conceded",
-        "Away Team Last 5 Avg Goals Scored",
-        "Away Team Last 5 Avg Goals Conceded",
+        "Home Team Last 3 Avg Goals Scored",
+        "Home Team Last 3 Avg Goals Conceded",
+        "Away Team Last 3 Avg Goals Scored",
+        "Away Team Last 3 Avg Goals Conceded",
         "Teams Average Scored Total",
         "Teams Average Conceded Total",
         "Home Expected Goals", 
@@ -143,9 +143,9 @@ def build_rows() -> list[list]:
         away_id = fixture["teams"]["away"]["id"]
 
         if home_id not in team_cache:
-            team_cache[home_id] = summarize_last_5(home_id)
+            team_cache[home_id] = summarize_last_3(home_id)
         if away_id not in team_cache:
-            team_cache[away_id] = summarize_last_5(away_id)
+            team_cache[away_id] = summarize_last_3(away_id)
 
         home_gf, home_ga, home_gf_avg, home_ga_avg = team_cache[home_id]
         away_gf, away_ga, away_gf_avg, away_ga_avg = team_cache[away_id]
